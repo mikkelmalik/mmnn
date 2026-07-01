@@ -12,7 +12,7 @@ Screen), with a clean path to a true native app later (see below).
 
 - **Next.js 16** (App Router, React 19, TypeScript) — UI + API in one codebase
 - **Drizzle ORM** — type-safe schema & migrations
-- **SQLite** for local dev (zero setup); swappable for Postgres/Neon in prod
+- **Postgres** — the default backend everywhere, from local dev (Docker) to production
 - **Auth.js v5** — passwordless **magic-link** email login
 - **Tailwind CSS v4** — cozy responsive UI
 - **Zod** — shared input validation
@@ -24,15 +24,18 @@ Screen), with a clean path to a true native app later (see below).
 # 1. Install dependencies
 npm install
 
-# 2. Configure environment
+# 2. Start a local Postgres (Docker)
+docker compose -f docker-compose.dev.yml up -d
+
+# 3. Configure environment
 cp .env.example .env.local
 #    Then edit SEED_MEMBER_EMAILS to list you and your friends' emails
 #    (the first email becomes the group owner).
 
-# 3. Create the database + seed your group
+# 4. Create the database + seed your group
 npm run db:setup      # runs migrations, then seeds the group + sample data
 
-# 4. Run it
+# 5. Run it
 npm run dev           # http://localhost:3000
 ```
 
@@ -76,19 +79,14 @@ src/
 
 ## Deploying to production
 
-The app targets **Vercel + Neon (Postgres)** for a free/low-cost deploy:
+The provided `docker-compose.yml` runs the app, Postgres, and Caddy (automatic
+HTTPS) together on a single VPS — see [DEPLOY.md](./DEPLOY.md) for the full
+walkthrough.
 
-1. Push this repo to GitHub and import it in Vercel.
-2. Create a Neon Postgres database.
-3. Swap the SQLite driver for Postgres: change `src/db/index.ts` to use
-   `drizzle-orm/neon-http` (or `postgres-js`) and set `dialect: "postgresql"` in
-   `drizzle.config.ts`; the schema column types port directly (text ids, json
-   metadata, timestamp columns).
-4. For real magic-link emails, set `RESEND_API_KEY` and a verified `EMAIL_FROM`
-   (a [Resend](https://resend.com) free account is enough). Without a key, links
-   are logged to the server console (dev behavior).
-5. Set env vars in Vercel: `DATABASE_URL`, `AUTH_SECRET` (`npx auth secret`),
-   `AUTH_URL` (your domain), `RESEND_API_KEY`, `EMAIL_FROM`.
+Prefer a managed Postgres (Neon, Supabase, RDS, ...) instead of the bundled `db`
+container? Just point `DATABASE_URL` at it and drop the `db` service from
+`docker-compose.yml` — the app already speaks plain Postgres via `postgres-js`,
+no code changes needed.
 
 ## Roadmap
 

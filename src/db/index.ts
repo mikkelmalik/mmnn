@@ -1,19 +1,18 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 
 import * as schema from "./schema";
 
-const DB_FILE = process.env.DATABASE_URL?.replace(/^file:/, "") ?? "sqlite.db";
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) throw new Error("DATABASE_URL is not set");
 
 // Reuse the connection across hot reloads in dev to avoid exhausting handles.
 const globalForDb = globalThis as unknown as {
-  __sqlite?: Database.Database;
+  __pg?: postgres.Sql;
 };
 
-const sqlite = globalForDb.__sqlite ?? new Database(DB_FILE);
-sqlite.pragma("journal_mode = WAL");
-sqlite.pragma("foreign_keys = ON");
-if (process.env.NODE_ENV !== "production") globalForDb.__sqlite = sqlite;
+const client = globalForDb.__pg ?? postgres(DATABASE_URL);
+if (process.env.NODE_ENV !== "production") globalForDb.__pg = client;
 
-export const db = drizzle(sqlite, { schema });
+export const db = drizzle(client, { schema });
 export { schema };
