@@ -107,7 +107,10 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      # Only read by this (proxy-profile) service. Kept as a soft default rather
+      # than a required `:?` guard because Compose interpolates the whole file at
+      # load time — a hard-require here would fail `dev`, where caddy never runs.
+      DOMAIN: ${DOMAIN:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
