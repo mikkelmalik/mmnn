@@ -23,7 +23,13 @@ CMD ["sh", "-c", "npm run db:migrate && npm run db:seed && npm run dev -- -p ${P
 # --- build: compile the production bundle ---
 FROM base AS build
 COPY . .
-RUN npm run build
+# `next build` imports route modules to collect page data (e.g. the NextAuth
+# handler pulls in the DB module, which requires DATABASE_URL at import). No
+# query runs at build time and postgres-js connects lazily, so a throwaway
+# value just needs to exist for the import to succeed. Scoped to this RUN only
+# (not an ENV) so it never persists into the prod image — the real DATABASE_URL
+# is injected at runtime by docker-compose.
+RUN DATABASE_URL="postgres://build:build@localhost:5432/build" npm run build
 
 # --- prod: serve the compiled app ---
 FROM build AS prod
