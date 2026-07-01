@@ -8,6 +8,13 @@
       "when": 1782914006438,
       "tag": "0000_massive_fat_cobra",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1782919437771,
+      "tag": "0001_aberrant_vindicator",
+      "breakpoints": true
     }
   ]
 }

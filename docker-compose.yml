@@ -1,8 +1,11 @@
 # Book Club — VPS deployment (app + Postgres + Caddy for automatic HTTPS).
 #
-#   1. cp .env.deploy.example .env    and fill in the values
+#   1. cp .env.example .env    and fill in the values (incl. ADMIN_EMAIL/PASSWORD)
 #   2. docker compose up -d --build
-#   3. docker compose exec app npm run db:seed   # first run: create group + members
+#
+# On start the app applies migrations and seeds the admin owner automatically
+# from ADMIN_EMAIL/ADMIN_PASSWORD — sign in at https://$DOMAIN/login, then share
+# a sign-up link from the Group tab to invite others.
 #
 # Caddy obtains and renews a Let's Encrypt certificate for $DOMAIN automatically,
 # so point your domain's A record at the server first.
@@ -36,6 +39,10 @@ services:
       AUTH_URL: ${AUTH_URL:?set AUTH_URL in .env}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-Book Club <no-reply@bookclub.local>}
+      # Initial admin (group owner). Created on first start; can invite others.
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?set ADMIN_EMAIL in .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD in .env}
+      ADMIN_NAME: ${ADMIN_NAME:-Admin}
       SEED_GROUP_NAME: ${SEED_GROUP_NAME:-The Book Club}
       SEED_MEMBER_EMAILS: ${SEED_MEMBER_EMAILS:-}
     depends_on:

@@ -25,3 +25,25 @@ export const reactionSchema = z.object({
   mediaItemId: z.string().min(1),
   emoji: z.string().min(1).max(16),
 });
+
+export const credentialsSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Enter a valid email address.")),
+  password: z.string().min(1, "Enter your password."),
+});
+
+export const signupSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .pipe(z.email("Enter a valid email address.")),
+  name: z.string().trim().max(80).optional().or(z.literal("")),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .max(200),
+});

@@ -46,6 +46,8 @@ export const users = pgTable("user", {
   email: text("email").unique(),
   emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
+  // scrypt hash for email+password login (magic-link users leave this null).
+  passwordHash: text("password_hash"),
 });
 
 export const accounts = pgTable(
@@ -121,7 +123,9 @@ export const invites = pgTable("invites", {
   groupId: text("group_id")
     .notNull()
     .references(() => groups.id, { onDelete: "cascade" }),
-  email: text("email").notNull(),
+  // null = an open, shareable sign-up link anyone can use until it expires.
+  // set = a link addressed to one person (email is pre-filled, single-use).
+  email: text("email"),
   token: text("token").notNull().unique(),
   invitedByUserId: text("invited_by_user_id")
     .notNull()
