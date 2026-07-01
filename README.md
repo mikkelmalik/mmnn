@@ -20,26 +20,31 @@ Screen), with a clean path to a true native app later (see below).
 
 ## Getting started
 
+Everything runs in Docker — **dev and production alike** — so the only thing you
+need installed is **Docker** (plus the Compose plugin). No host Node.js, no
+`npm install`. It runs on a clean Ubuntu/Debian box out of the box.
+
 ```bash
-# 1. Install dependencies
-npm install
+# 1. Configure — one file drives everything
+cp .env.example .env
+#    Leave COMPOSE_PROFILES=dev for development, and set ADMIN_EMAIL +
+#    ADMIN_PASSWORD — this becomes the group owner you sign in as.
 
-# 2. Start a local Postgres (Docker)
-docker compose -f docker-compose.dev.yml up -d
-
-# 3. Configure environment
-cp .env.example .env.local
-#    Then set ADMIN_EMAIL + ADMIN_PASSWORD — this becomes the group owner
-#    you sign in as.
-
-# 4. Create the database + seed the admin owner
-npm run db:setup      # runs migrations, then seeds the admin + sample data
-
-# 5. Run it
-npm run dev           # http://localhost:3000
+# 2. Run it (builds the image, applies migrations, seeds the admin, starts)
+docker compose up -d --build      # http://localhost:3000
 ```
 
-### Signing in (local dev)
+The one switch is `COMPOSE_PROFILES` in `.env`:
+
+| `COMPOSE_PROFILES` | What runs |
+| --- | --- |
+| `dev` | App with **hot reload** + Postgres, on `http://localhost:3000` |
+| `prod` | Built app + Postgres, on `http://localhost:3000` |
+| `prod,proxy` | Built app + Postgres + **Caddy** (automatic HTTPS for `DOMAIN`) |
+
+See [DEPLOY.md](./DEPLOY.md) for the hosted-production walkthrough.
+
+### Signing in
 
 Sign in at `/login` with the `ADMIN_EMAIL` / `ADMIN_PASSWORD` you set. From the
 **Group** tab, create a sign-up link and share it — anyone who opens it picks a
@@ -48,13 +53,17 @@ land on a welcome screen.
 
 A passwordless **magic link** is also available (the "email me a link" option on
 the login screen). In development no email server is needed — the link is
-**printed to the terminal running `npm run dev`**.
+**printed to the app container log** (`docker compose logs -f app-dev`).
 
 ## Useful scripts
 
+These run **inside the container** — you don't need Node.js on the host. Prefix
+them with `docker compose exec` (`app-dev` in dev, `app` in prod), e.g.
+`docker compose exec app-dev npm run db:studio`.
+
 | Script | What it does |
 | --- | --- |
-| `npm run dev` | Start the dev server |
+| `npm run dev` | Start the dev server (the dev container's default command) |
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run db:generate` | Generate a migration from schema changes |
 | `npm run db:migrate` | Apply migrations |

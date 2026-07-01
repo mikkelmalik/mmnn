@@ -24,9 +24,19 @@ automatically.
 git clone https://github.com/mikkelmalik/mmnn.git bookclub
 cd bookclub
 cp .env.example .env
-nano .env          # fill in DOMAIN, AUTH_URL, AUTH_SECRET, POSTGRES_PASSWORD,
-                   # and ADMIN_EMAIL + ADMIN_PASSWORD (your login)
+nano .env          # set COMPOSE_PROFILES=prod,proxy and fill in DOMAIN, AUTH_URL,
+                   # AUTH_SECRET, POSTGRES_PASSWORD, and ADMIN_EMAIL + ADMIN_PASSWORD
 ```
+
+The single `COMPOSE_PROFILES` switch in `.env` selects what runs:
+
+| `COMPOSE_PROFILES` | What runs | When |
+| --- | --- | --- |
+| `dev` | App (hot reload) + Postgres on `:3000` | Local development |
+| `prod` | Built app + Postgres on `:3000` | Production behind your own proxy, or a quick local prod check |
+| `prod,proxy` | Built app + Postgres + Caddy (auto HTTPS) | **Hosted production with a domain** — use this on the VPS |
+
+For a hosted VPS deploy set `COMPOSE_PROFILES=prod,proxy` and `AUTH_URL=https://your-domain`.
 
 Generate a real secret for `AUTH_SECRET`:
 ```bash
@@ -57,9 +67,10 @@ members set a password when they sign up, Resend is entirely optional.
 docker compose up -d --build
 ```
 
-This starts Postgres, builds the app image, applies database migrations **and
-seeds the admin owner** on start, and brings up the app behind Caddy. Give Caddy
-a minute to obtain the certificate, then visit `https://your-domain`.
+With `COMPOSE_PROFILES=prod,proxy` this starts Postgres, builds the app image,
+applies database migrations **and seeds the admin owner** on start, and brings
+up the app behind Caddy. Give Caddy a minute to obtain the certificate, then
+visit `https://your-domain`.
 
 ## 3. Sign in and invite people
 
