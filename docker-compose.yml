@@ -1,0 +1,45 @@
+# Book Club — VPS deployment (app + Caddy for automatic HTTPS).
+#
+#   1. cp .env.deploy.example .env    and fill in the values
+#   2. docker compose up -d --build
+#   3. docker compose exec app npm run db:seed   # first run: create group + members
+#
+# Caddy obtains and renews a Let's Encrypt certificate for $DOMAIN automatically,
+# so point your domain's A record at the server first.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: "file:/data/sqlite.db"
+      AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
+      AUTH_URL: ${AUTH_URL:?set AUTH_URL in .env}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Book Club <no-reply@bookclub.local>}
+      SEED_GROUP_NAME: ${SEED_GROUP_NAME:-The Book Club}
+      SEED_MEMBER_EMAILS: ${SEED_MEMBER_EMAILS:-}
+    volumes:
+      - dbdata:/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  dbdata:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,5 @@
+# Automatic HTTPS via Let's Encrypt for your domain.
+# DOMAIN is injected from the environment (see docker-compose.yml / .env).
+{$DOMAIN} {
+	reverse_proxy app:3000
+}
