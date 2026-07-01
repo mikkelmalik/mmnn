@@ -1,4 +1,4 @@
-# Book Club — VPS deployment (app + Caddy for automatic HTTPS).
+# Book Club — VPS deployment (app + Postgres + Caddy for automatic HTTPS).
 #
 #   1. cp .env.deploy.example .env    and fill in the values
 #   2. docker compose up -d --build
@@ -8,19 +8,39 @@
 # so point your domain's A record at the server first.
 
 services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bookclub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-bookclub}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-bookclub} -d ${POSTGRES_DB:-bookclub}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   app:
     build: .
     restart: unless-stopped
     environment:
-      DATABASE_URL: "file:/data/sqlite.db"
+      DATABASE_URL: "postgres://${POSTGRES_USER:-bookclub}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-bookclub}"
       AUTH_SECRET: ${AUTH_SECRET:?set AUTH_SECRET in .env}
       AUTH_URL: ${AUTH_URL:?set AUTH_URL in .env}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-Book Club <no-reply@bookclub.local>}
       SEED_GROUP_NAME: ${SEED_GROUP_NAME:-The Book Club}
       SEED_MEMBER_EMAILS: ${SEED_MEMBER_EMAILS:-}
-    volumes:
-      - dbdata:/data
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - "3000"
 
@@ -40,6 +60,6 @@ services:
       - app
 
 volumes:
-  dbdata:
+  pgdata:
   caddy_data:
   caddy_config:

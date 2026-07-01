@@ -1,10 +1,12 @@
 import {
   integer,
+  jsonb,
+  pgTable,
   primaryKey,
-  sqliteTable,
   text,
+  timestamp,
   unique,
-} from "drizzle-orm/sqlite-core";
+} from "drizzle-orm/pg-core";
 
 /**
  * The data model for the media book-club.
@@ -15,10 +17,6 @@ import {
  * `mediaItems` carries nullable enrichment columns (externalSource, coverImageUrl,
  * metadata, ...) so a future TMDB / Open Library / IGDB layer is purely additive —
  * no migration needed to add cover art later.
- *
- * NOTE: This targets SQLite for zero-setup local dev. Moving to Postgres (Neon)
- * later is a contained change: swap the column builders (text->uuid, json mode,
- * timestamps) and the driver in src/db/index.ts.
  */
 
 const id = () =>
@@ -27,30 +25,30 @@ const id = () =>
     .$defaultFn(() => crypto.randomUUID());
 
 const createdAt = () =>
-  integer("created_at", { mode: "timestamp_ms" })
+  timestamp("created_at", { mode: "date" })
     .notNull()
     .$defaultFn(() => new Date());
 
 const updatedAt = () =>
-  integer("updated_at", { mode: "timestamp_ms" })
+  timestamp("updated_at", { mode: "date" })
     .notNull()
     .$defaultFn(() => new Date());
 
 // ---------------------------------------------------------------------------
-// Auth.js tables (shape required by @auth/drizzle-adapter, sqlite flavor)
+// Auth.js tables (shape required by @auth/drizzle-adapter, postgres flavor)
 // ---------------------------------------------------------------------------
 
-export const users = sqliteTable("user", {
+export const users = pgTable("user", {
   id: text("id")
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
   name: text("name"),
   email: text("email").unique(),
-  emailVerified: integer("emailVerified", { mode: "timestamp_ms" }),
+  emailVerified: timestamp("emailVerified", { mode: "date" }),
   image: text("image"),
 });
 
-export const accounts = sqliteTable(
+export const accounts = pgTable(
   "account",
   {
     userId: text("userId")
@@ -72,20 +70,20 @@ export const accounts = sqliteTable(
   ],
 );
 
-export const sessions = sqliteTable("session", {
+export const sessions = pgTable("session", {
   sessionToken: text("sessionToken").primaryKey(),
   userId: text("userId")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+  expires: timestamp("expires", { mode: "date" }).notNull(),
 });
 
-export const verificationTokens = sqliteTable(
+export const verificationTokens = pgTable(
   "verificationToken",
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
-    expires: integer("expires", { mode: "timestamp_ms" }).notNull(),
+    expires: timestamp("expires", { mode: "date" }).notNull(),
   },
   (vt) => [primaryKey({ columns: [vt.identifier, vt.token] })],
 );
@@ -94,13 +92,13 @@ export const verificationTokens = sqliteTable(
 // App domain tables
 // ---------------------------------------------------------------------------
 
-export const groups = sqliteTable("groups", {
+export const groups = pgTable("groups", {
   id: id(),
   name: text("name").notNull(),
   createdAt: createdAt(),
 });
 
-export const memberships = sqliteTable(
+export const memberships = pgTable(
   "memberships",
   {
     id: id(),
@@ -118,7 +116,7 @@ export const memberships = sqliteTable(
   (m) => [unique().on(m.groupId, m.userId)],
 );
 
-export const invites = sqliteTable("invites", {
+export const invites = pgTable("invites", {
   id: id(),
   groupId: text("group_id")
     .notNull()
@@ -128,8 +126,8 @@ export const invites = sqliteTable("invites", {
   invitedByUserId: text("invited_by_user_id")
     .notNull()
     .references(() => users.id, { onDelete: "cascade" }),
-  acceptedAt: integer("accepted_at", { mode: "timestamp_ms" }),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
+  acceptedAt: timestamp("accepted_at", { mode: "date" }),
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
   createdAt: createdAt(),
 });
 
@@ -143,7 +141,7 @@ export const MEDIA_CATEGORIES = [
 ] as const;
 export type MediaCategory = (typeof MEDIA_CATEGORIES)[number];
 
-export const mediaItems = sqliteTable("media_items", {
+export const mediaItems = pgTable("media_items", {
   id: id(),
   groupId: text("group_id")
     .notNull()
@@ -163,13 +161,13 @@ export const mediaItems = sqliteTable("media_items", {
   }),
   externalId: text("external_id"),
   coverImageUrl: text("cover_image_url"),
-  metadata: text("metadata", { mode: "json" }),
-  enrichedAt: integer("enriched_at", { mode: "timestamp_ms" }),
+  metadata: jsonb("metadata"),
+  enrichedAt: timestamp("enriched_at", { mode: "date" }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
-export const reactions = sqliteTable(
+export const reactions = pgTable(
   "reactions",
   {
     id: id(),
@@ -185,7 +183,7 @@ export const reactions = sqliteTable(
   (r) => [unique().on(r.mediaItemId, r.userId, r.emoji)],
 );
 
-export const comments = sqliteTable("comments", {
+export const comments = pgTable("comments", {
   id: id(),
   mediaItemId: text("media_item_id")
     .notNull()
@@ -201,7 +199,7 @@ export const comments = sqliteTable("comments", {
 export const ITEM_STATUSES = ["want_to_try", "consumed"] as const;
 export type ItemStatus = (typeof ITEM_STATUSES)[number];
 
-export const itemStatuses = sqliteTable(
+export const itemStatuses = pgTable(
   "item_statuses",
   {
     id: id(),

@@ -3,9 +3,6 @@ node_modules
 out
 .git
 .github
-*.db
-*.db-shm
-*.db-wal
 .env
 .env.*
 !.env.example

@@ -1,11 +1,12 @@
 # Deploying Book Club to a VPS
 
 This app runs great on a single small VPS (1 shared vCPU / 1 GB RAM is plenty for
-a friend group). It uses **SQLite on a persistent disk**, so there's no separate
-database service to manage — just back up one file.
+a friend group). It uses **Postgres on a persistent disk**, so state survives
+container rebuilds.
 
-The provided **Docker Compose** setup runs the app plus **Caddy**, which fetches
-and renews HTTPS certificates for your domain automatically.
+The provided **Docker Compose** setup runs the app, a **Postgres** database, and
+**Caddy**, which fetches and renews HTTPS certificates for your domain
+automatically.
 
 ## Prerequisites
 
@@ -23,7 +24,7 @@ and renews HTTPS certificates for your domain automatically.
 git clone https://github.com/mikkelmalik/mmnn.git bookclub
 cd bookclub
 cp .env.deploy.example .env
-nano .env          # fill in DOMAIN, AUTH_URL, AUTH_SECRET, email + seed vars
+nano .env          # fill in DOMAIN, AUTH_URL, AUTH_SECRET, POSTGRES_PASSWORD, email + seed vars
 ```
 
 Generate a real secret for `AUTH_SECRET`:
@@ -48,9 +49,9 @@ but not for real users.
 docker compose up -d --build
 ```
 
-This builds the image, applies database migrations on start, and brings up the
-app behind Caddy. Give Caddy a minute to obtain the certificate, then visit
-`https://your-domain`.
+This starts Postgres, builds the app image, applies database migrations on
+start, and brings up the app behind Caddy. Give Caddy a minute to obtain the
+certificate, then visit `https://your-domain`.
 
 ## 3. Seed your group (first run only)
 
@@ -71,23 +72,21 @@ seed (it's idempotent), or use the in-app invite flow once it lands.
 | View logs | `docker compose logs -f app` |
 | Restart | `docker compose restart app` |
 | Update to latest | `git pull && docker compose up -d --build` |
-| Open a DB shell | `docker compose exec app npx drizzle-kit studio` |
+| Open a DB shell | `docker compose exec db psql -U ${POSTGRES_USER:-bookclub} -d ${POSTGRES_DB:-bookclub}` |
+| Open Drizzle Studio | `docker compose exec app npx drizzle-kit studio` |
 
 ### Backups
 
-Your entire app state is one SQLite file inside the `dbdata` volume. Back it up
-on a schedule, e.g. a nightly cron on the host:
+Your entire app state lives in the `db` service's `pgdata` volume. Back it up on
+a schedule, e.g. a nightly cron on the host:
 
 ```bash
-docker compose exec -T app sh -c 'cat /data/sqlite.db' > backup-$(date +%F).db
+docker compose exec -T db pg_dump -U ${POSTGRES_USER:-bookclub} ${POSTGRES_DB:-bookclub} > backup-$(date +%F).sql
 ```
 
 ## Notes & limits
 
 - **HTTPS is required** — Auth.js uses secure cookies, so sign-in won't work over
   plain HTTP. The Caddy setup handles TLS for you; just use the `https://` URL.
-- **Single server** — SQLite means one box, no horizontal scaling. Ideal for a
-  small private group; if you ever outgrow it, migrate to Postgres/Neon (the
-  schema ports directly — see README).
 - **Migrations** run automatically on container start, so `git pull && up --build`
   is a safe upgrade path.
