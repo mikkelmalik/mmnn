@@ -23,8 +23,9 @@ automatically.
 ```bash
 git clone https://github.com/mikkelmalik/mmnn.git bookclub
 cd bookclub
-cp .env.deploy.example .env
-nano .env          # fill in DOMAIN, AUTH_URL, AUTH_SECRET, POSTGRES_PASSWORD, email + seed vars
+cp .env.example .env
+nano .env          # fill in DOMAIN, AUTH_URL, AUTH_SECRET, POSTGRES_PASSWORD,
+                   # and ADMIN_EMAIL + ADMIN_PASSWORD (your login)
 ```
 
 Generate a real secret for `AUTH_SECRET`:
@@ -32,13 +33,20 @@ Generate a real secret for `AUTH_SECRET`:
 npx auth secret        # or: openssl rand -base64 32
 ```
 
-### Login email (important)
+### Admin login (required)
 
-For your friends to sign in, the magic-link email has to actually send. Create a
-free [Resend](https://resend.com) account, verify your sending domain, and set
-`RESEND_API_KEY` + `EMAIL_FROM` in `.env`. Without a key the link is only printed
-to the container log (`docker compose logs app`) — usable for your own testing,
-but not for real users.
+Set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`. On first start the app creates
+this user as the **group owner** — you sign in with that email + password at
+`https://your-domain/login`, no email service needed. Change `ADMIN_PASSWORD` and
+re-deploy to rotate it (the seed re-syncs the password on every start).
+
+### Login email (optional)
+
+Members can also request a passwordless **magic link**. For that link to actually
+send, create a free [Resend](https://resend.com) account, verify your sending
+domain, and set `RESEND_API_KEY` + `EMAIL_FROM` in `.env`. Without a key the link
+is only printed to the container log (`docker compose logs app`). Since invited
+members set a password when they sign up, Resend is entirely optional.
 
 > Prefer your own mailbox/SMTP instead of Resend? Ask and the magic-link provider
 > can be switched to plain SMTP (Gmail app password, Fastmail, self-hosted, etc.).
@@ -49,21 +57,20 @@ but not for real users.
 docker compose up -d --build
 ```
 
-This starts Postgres, builds the app image, applies database migrations on
-start, and brings up the app behind Caddy. Give Caddy a minute to obtain the
-certificate, then visit `https://your-domain`.
+This starts Postgres, builds the app image, applies database migrations **and
+seeds the admin owner** on start, and brings up the app behind Caddy. Give Caddy
+a minute to obtain the certificate, then visit `https://your-domain`.
 
-## 3. Seed your group (first run only)
+## 3. Sign in and invite people
 
-Create the group and add member emails (from `SEED_MEMBER_EMAILS`; first = owner):
+1. Go to `https://your-domain/login` and sign in with `ADMIN_EMAIL` /
+   `ADMIN_PASSWORD`.
+2. Open the **Group** tab and click **Create link** to generate a sign-up link.
+3. Share the link. Anyone who opens it picks a password and joins the group;
+   they then sign in with email + password like you do.
 
-```bash
-docker compose exec app npm run db:seed
-```
-
-Only seeded member emails can access the feed — others hit a welcome screen.
-To add a friend later, add their email to `SEED_MEMBER_EMAILS` and re-run the
-seed (it's idempotent), or use the in-app invite flow once it lands.
+Only members of the group can access the feed — anyone else lands on a welcome
+screen. You can revoke a sign-up link anytime from the Group tab.
 
 ## Operations
 

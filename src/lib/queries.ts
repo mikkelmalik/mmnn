@@ -3,6 +3,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
 import {
   comments,
+  invites,
   itemStatuses,
   type ItemStatus,
   type MediaCategory,
@@ -198,6 +199,53 @@ export async function getGroupMembers(groupId: string): Promise<
     .innerJoin(users, eq(users.id, memberships.userId))
     .where(eq(memberships.groupId, groupId));
   return rows;
+}
+
+export type GroupInvite = {
+  id: string;
+  token: string;
+  email: string | null;
+  expiresAt: Date;
+  acceptedAt: Date | null;
+  createdAt: Date;
+};
+
+/** Active (unexpired, not yet single-use-accepted) invites for a group, newest first. */
+export async function getActiveInvites(groupId: string): Promise<GroupInvite[]> {
+  const rows = await db
+    .select({
+      id: invites.id,
+      token: invites.token,
+      email: invites.email,
+      expiresAt: invites.expiresAt,
+      acceptedAt: invites.acceptedAt,
+      createdAt: invites.createdAt,
+    })
+    .from(invites)
+    .where(eq(invites.groupId, groupId))
+    .orderBy(desc(invites.createdAt));
+  const now = Date.now();
+  return rows.filter(
+    (i) => i.expiresAt.getTime() > now && !(i.email && i.acceptedAt),
+  );
+}
+
+/** Look up an invite by its share token (no validity filtering). */
+export async function getInviteByToken(token: string) {
+  return db.query.invites.findFirst({ where: eq(invites.token, token) });
+}
+
+/**
+ * Look up an invite by token, returning it only if it's still usable
+ * (unexpired, and not an already-consumed single-use email invite).
+ */
+export async function getValidInviteByToken(token: string) {
+  const invite = await getInviteByToken(token);
+  if (!invite) return null;
+  const usable =
+    invite.expiresAt.getTime() > Date.now() &&
+    !(invite.email && invite.acceptedAt);
+  return usable ? invite : null;
 }
 
 export async function getMyLists(groupId: string, userId: string) {

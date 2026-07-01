@@ -15,6 +15,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
-# Apply DB migrations on start, then serve. Postgres data lives in the "db"
-# service (see docker-compose.yml), so app data persists across restarts/redeploys.
-CMD ["sh", "-c", "npm run db:migrate && npm run start -- -p ${PORT} -H 0.0.0.0"]
+# On start: apply DB migrations, then seed (creates/updates the admin owner from
+# ADMIN_EMAIL/ADMIN_PASSWORD — idempotent), then serve. Postgres data lives in the
+# "db" service (see docker-compose.yml), so app data persists across restarts.
+CMD ["sh", "-c", "npm run db:migrate && npm run db:seed && npm run start -- -p ${PORT} -H 0.0.0.0"]

@@ -8,8 +8,8 @@ export default async function WelcomePage() {
       <div className="mb-3 text-5xl">👋</div>
       <h1 className="text-2xl font-bold">You&apos;re signed in</h1>
       <p className="mt-2 text-stone-500 dark:text-stone-400">
-        {user.email} isn&apos;t part of a group yet. Ask a member to invite this
-        email, then sign in again.
+        {user.email} isn&apos;t part of a group yet. Ask the group owner for a
+        sign-up link to join.
       </p>
       <form action={signOutAction} className="mt-6">
         <button

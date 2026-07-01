@@ -1,10 +1,21 @@
+import { headers } from "next/headers";
+
 import { AppShell } from "@/components/app-shell";
+import { InvitePanel, type InviteView } from "@/components/invite-panel";
 import { db } from "@/db";
 import { groups } from "@/db/schema";
 import { requireMember } from "@/lib/auth-guard";
-import { displayName } from "@/lib/format";
-import { getGroupMembers } from "@/lib/queries";
+import { displayName, timeAgo } from "@/lib/format";
+import { getActiveInvites, getGroupMembers } from "@/lib/queries";
 import { eq } from "drizzle-orm";
+
+async function baseUrl(): Promise<string> {
+  if (process.env.AUTH_URL) return process.env.AUTH_URL.replace(/\/$/, "");
+  const h = await headers();
+  const host = h.get("host") ?? "localhost:3000";
+  const proto = h.get("x-forwarded-proto") ?? "http";
+  return `${proto}://${host}`;
+}
 
 export default async function MembersPage() {
   const member = await requireMember();
@@ -12,6 +23,21 @@ export default async function MembersPage() {
     db.query.groups.findFirst({ where: eq(groups.id, member.groupId) }),
     getGroupMembers(member.groupId),
   ]);
+
+  const isOwner = member.role === "owner";
+  let inviteViews: InviteView[] = [];
+  if (isOwner) {
+    const [invites, origin] = await Promise.all([
+      getActiveInvites(member.groupId),
+      baseUrl(),
+    ]);
+    inviteViews = invites.map((inv) => ({
+      id: inv.id,
+      url: `${origin}/signup?token=${inv.token}`,
+      email: inv.email,
+      expiresLabel: timeAgo(inv.expiresAt),
+    }));
+  }
 
   return (
     <AppShell title="Group">
@@ -46,10 +72,13 @@ export default async function MembersPage() {
         ))}
       </ul>
 
-      <p className="mt-6 rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
-        ✉️ Inviting new friends by email is coming next. For now, add members via
-        the seed script (<code>npm run db:seed</code>).
-      </p>
+      {isOwner ? (
+        <InvitePanel invites={inviteViews} />
+      ) : (
+        <p className="mt-6 rounded-2xl border border-dashed border-stone-300 p-4 text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
+          Want to invite a friend? Ask the group owner to share a sign-up link.
+        </p>
+      )}
     </AppShell>
   );
 }
